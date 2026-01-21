@@ -1,0 +1,644 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>篮球投篮小游戏</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FF7F50', // 篮球橙色
+                        secondary: '#1E88E5', // 蓝色
+                        dark: '#2D3748',
+                        light: '#F7FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 2s infinite',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            }
+            .btn-bounce:active {
+                transform: scale(0.95);
+            }
+        }
+        
+        /* 自定义动画 */
+        @keyframes ball-throw {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(150px, -100px) scale(0.8); }
+            100% { transform: translate(300px, 0) scale(1); }
+        }
+        
+        @keyframes ball-swish {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        .animate-throw {
+            animation: ball-throw 1s ease-in-out forwards;
+        }
+        
+        .animate-swish {
+            animation: ball-swish 0.5s ease-in-out;
+        }
+        
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-in-out;
+        }
+        
+        .animate-fade-out {
+            animation: fade-out 0.5s ease-in-out;
+        }
+        
+        /* 球员切换效果 */
+        .player-active {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 127, 80, 0.7);
+        }
+        
+        /* 篮球框抖动效果 */
+        .basket-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="container max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+        <!-- 游戏标题 -->
+        <div class="bg-primary text-white text-center py-4 px-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-shadow">篮球投篮小游戏</h1>
+            <p class="text-sm md:text-base mt-1">点击屏幕投篮，挑战许江涛！</p>
+        </div>
+        
+        <!-- 游戏主界面 -->
+        <div class="p-4 md:p-6">
+            <!-- 比分板 -->
+            <div class="flex justify-center mb-6">
+                <div class="bg-gray-100 rounded-lg p-4 w-full max-w-md">
+                    <div class="flex justify-between items-center">
+                        <!-- 玩家信息 -->
+                        <div class="text-center player-info" id="player-info">
+                            <div class="w-16 h-16 mx-auto mb-2 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden player-active" id="player-avatar">
+                                <i class="fa fa-user text-3xl text-blue-500"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">你</h3>
+                            <div class="text-2xl font-bold text-blue-600" id="player-score">0</div>
+                            <div class="text-xs text-gray-500"></div>
+                        </div>
+                        
+                        <!-- VS标志 -->
+                        <div class="flex flex-col items-center justify-center px-4">
+                            <div class="text-2xl font-bold text-gray-700">VS</div>
+                            <div class="text-sm text-gray-500 mt-1">第 <span id="round-counter">1</span> 轮</div>
+                        </div>
+                        
+                        <!-- 许江涛信息 -->
+                        <div class="text-center player-info" id="computer-info">
+                            <div class="w-16 h-16 mx-auto mb-2 bg-red-100 rounded-full flex items-center justify-center overflow-hidden" id="computer-avatar">
+                                <i class="fa fa-user text-3xl text-red-500"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">许江涛</h3>
+                            <div class="text-2xl font-bold text-red-600" id="computer-score">0</div>
+                            <div class="text-xs text-gray-500"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 游戏区域 -->
+            <div class="relative bg-blue-50 rounded-xl overflow-hidden shadow-inner mb-6">
+                <!-- 篮球场背景 -->
+                <div class="absolute inset-0 opacity-20 bg-cover bg-center" style="background-image: url('https://p26-doubao-search-sign.byteimg.com/labis/1567c42c420924eef150c22118e57d0f~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&amp;x-expires=1784551773&amp;x-signature=w%2BQ3%2FOJVx4W%2B0qWeGTUv6fBwNx8%3D')"></div>
+                
+                <!-- 游戏画布 -->
+                <canvas id="gameCanvas" class="w-full h-64 md:h-80 block"></canvas>
+                
+                <!-- 投篮结果提示 -->
+                <div id="result-message" class="absolute inset-0 flex items-center justify-center text-2xl font-bold text-shadow hidden">
+                    <span class="bg-white bg-opacity-80 px-4 py-2 rounded-lg animate-fade-in"></span>
+                </div>
+            </div>
+            
+            <!-- 游戏控制区 -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <!-- 当前回合提示 -->
+                <div class="bg-gray-100 rounded-lg px-4 py-2 text-center flex-1">
+                    <p class="text-sm text-gray-600">当前回合</p>
+                    <p class="text-xl font-bold" id="current-turn">玩家投篮</p>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="flex gap-3">
+                    <button id="shoot-btn" class="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-lg shadow btn-bounce flex items-center">
+                        <i class="fa fa-bullseye mr-2"></i> 投篮
+                    </button>
+                    <button id="reset-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow btn-bounce">
+                        <i class="fa fa-refresh mr-2"></i> 重置
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 游戏说明 -->
+            <div class="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-gray-700">
+                <h4 class="font-bold mb-2 flex items-center">
+                    <i class="fa fa-info-circle mr-2 text-blue-500"></i> 游戏规则
+                </h4>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>玩家和许江涛轮流投篮</li>
+                    <li>点击"投篮"按钮或点击游戏区域进行投篮</li>
+                    <li>率先获得5分的一方获胜</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 游戏结束弹窗 -->
+    <div id="game-over-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 transform transition-all animate-fade-in">
+            <h2 class="text-2xl font-bold text-center mb-4" id="winner-text">游戏结束</h2>
+            <div class="text-center mb-6">
+                <div class="text-4xl font-bold mb-2" id="final-score">0 - 0</div>
+                <p class="text-gray-600" id="game-over-message"></p>
+            </div>
+            <div class="flex justify-center">
+                <button id="play-again-btn" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-lg shadow btn-bounce">
+                    再来一局
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        const gameState = {
+            currentPlayer: 'player', // 'player' 或 'computer'
+            playerScore: 0,
+            computerScore: 0,
+            round: 1,
+            isShooting: false,
+            gameOver: false
+        };
+        
+        // 获取DOM元素
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const playerScoreEl = document.getElementById('player-score');
+        const computerScoreEl = document.getElementById('computer-score');
+        const roundCounterEl = document.getElementById('round-counter');
+        const currentTurnEl = document.getElementById('current-turn');
+        const resultMessageEl = document.getElementById('result-message');
+        const resultTextEl = resultMessageEl.querySelector('span');
+        const playerAvatarEl = document.getElementById('player-avatar');
+        const computerAvatarEl = document.getElementById('computer-avatar');
+        const shootBtn = document.getElementById('shoot-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const winnerTextEl = document.getElementById('winner-text');
+        const finalScoreEl = document.getElementById('final-score');
+        const gameOverMessageEl = document.getElementById('game-over-message');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        
+        // 游戏资源
+        const images = {
+            basketball: new Image(),
+            basket: new Image(),
+            player: new Image(),
+            computer: new Image()
+        };
+        
+        // 设置图片源
+        images.basketball.src = 'https://p11-doubao-search-sign.byteimg.com/labis/58763995dbc7931af2c6951166ca289a~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1784551773&x-signature=pUF1jhNcxxcMP8rLyT5ium0BeHA%3D';
+        images.basket.src = 'https://p11-doubao-search-sign.byteimg.com/ecom-shop-material/v1_LPQQLWUm_71037771716588341790713_288836f2c342cb0fd0c61a154b1edf29_sx_64087_www800-800~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1784551792&x-signature=SC%2BUrVVBUzuR0osKPXe2Z5i1iXU%3D';
+        
+        // 设置Canvas尺寸
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        
+        // 初始化游戏
+        function initGame() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // 加载图片
+            let loadedImages = 0;
+            const totalImages = Object.keys(images).length;
+            
+            function imageLoaded() {
+                loadedImages++;
+                if (loadedImages === totalImages) {
+                    drawGame();
+                }
+            }
+            
+            for (const key in images) {
+                images[key].onload = imageLoaded;
+                images[key].onerror = function() {
+                    console.error(`Failed to load image: ${this.src}`);
+                    loadedImages++;
+                    if (loadedImages === totalImages) {
+                        drawGame();
+                    }
+                };
+            }
+            
+            // 添加事件监听器
+            shootBtn.addEventListener('click', handleShoot);
+            resetBtn.addEventListener('click', resetGame);
+            canvas.addEventListener('click', handleShoot);
+            playAgainBtn.addEventListener('click', resetGame);
+            
+            // 更新UI
+            updateUI();
+        }
+        
+        // 绘制游戏画面
+        function drawGame() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制篮球场地面
+            ctx.fillStyle = '#f0f9ff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制三分线
+            ctx.beginPath();
+            ctx.arc(canvas.width - 100, canvas.height / 2, 80, Math.PI * 0.8, Math.PI * 0.2, true);
+            ctx.strokeStyle = '#1E88E5';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 绘制篮球框
+            const basketX = canvas.width - 80;
+            const basketY = canvas.height / 2 - 30;
+            const basketWidth = 60;
+            const basketHeight = 60;
+            
+            if (images.basket.complete) {
+                ctx.drawImage(images.basket, basketX - basketWidth/2, basketY - basketHeight/2, basketWidth, basketHeight);
+            } else {
+                // 如果图片未加载完成，绘制一个占位符
+                ctx.fillStyle = '#FF7F50';
+                ctx.fillRect(basketX - 20, basketY - 5, 40, 10);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(basketX - 20, basketY + 5, 40, 20);
+            }
+            
+            // 绘制球员
+            const playerSize = 50;
+            
+            // 玩家
+            const playerX = 50;
+            const playerY = canvas.height / 2;
+            
+            if (images.player.complete) {
+                ctx.drawImage(images.player, playerX - playerSize/2, playerY - playerSize/2, playerSize, playerSize);
+            } else {
+                // 绘制玩家占位符
+                ctx.fillStyle = '#1E88E5';
+                ctx.beginPath();
+                ctx.arc(playerX, playerY - 15, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(playerX - 15, playerY, 30, 25);
+            }
+            
+            // 电脑
+            const computerX = canvas.width / 2;
+            const computerY = canvas.height / 2;
+            
+            if (images.computer.complete) {
+                ctx.drawImage(images.computer, computerX - playerSize/2, computerY - playerSize/2, playerSize, playerSize);
+            } else {
+                // 绘制电脑占位符
+                ctx.fillStyle = '#EF4444';
+                ctx.beginPath();
+                ctx.arc(computerX, computerY - 15, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(computerX - 15, computerY, 30, 25);
+            }
+            
+            // 绘制篮球
+            if (!gameState.isShooting) {
+                const ballX = gameState.currentPlayer === 'player' ? playerX : computerX;
+                const ballY = gameState.currentPlayer === 'player' ? playerY - 10 : computerY - 10;
+                const ballSize = 20;
+                
+                if (images.basketball.complete) {
+                    ctx.drawImage(images.basketball, ballX - ballSize/2, ballY - ballSize/2, ballSize, ballSize);
+                } else {
+                    // 绘制篮球占位符
+                    ctx.fillStyle = '#FF7F50';
+                    ctx.beginPath();
+                    ctx.arc(ballX, ballY, ballSize/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ballX, ballY, ballSize/2, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        // 投篮动画
+        function animateShoot() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 重新绘制游戏画面
+            drawGame();
+            
+            // 获取投篮起点和终点
+            const startX = gameState.currentPlayer === 'player' ? 50 : canvas.width / 2;
+            const startY = gameState.currentPlayer === 'player' ? canvas.height / 2 - 10 : canvas.height / 2 - 10;
+            const endX = canvas.width - 80;
+            const endY = canvas.height / 2;
+            
+            // 计算篮球当前位置
+            const progress = Math.min((Date.now() - animationStartTime) / animationDuration, 1);
+            
+            // 使用二次贝塞尔曲线计算篮球路径
+            const cpX = (startX + endX) / 2;
+            const cpY = startY - 80; // 控制点Y坐标，影响抛物线高度
+            
+            const ballX = (1 - progress) * (1 - progress) * startX + 2 * (1 - progress) * progress * cpX + progress * progress * endX;
+            const ballY = (1 - progress) * (1 - progress) * startY + 2 * (1 - progress) * progress * cpY + progress * progress * endY;
+            
+            // 绘制篮球
+            const ballSize = 20;
+            
+            if (images.basketball.complete) {
+                ctx.drawImage(images.basketball, ballX - ballSize/2, ballY - ballSize/2, ballSize, ballSize);
+            } else {
+                ctx.fillStyle = '#FF7F50';
+                ctx.beginPath();
+                ctx.arc(ballX, ballY, ballSize/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(ballX, ballY, ballSize/2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // 如果动画未完成，继续下一帧
+            if (progress < 1) {
+                requestAnimationFrame(animateShoot);
+            } else {
+                // 动画完成，处理投篮结果
+                setTimeout(() => {
+                    handleShootResult();
+                }, 200);
+            }
+        }
+        
+        // 处理投篮
+        let animationStartTime;
+        let animationDuration = 1000; // 动画持续时间（毫秒）
+        
+        function handleShoot() {
+            // 如果游戏结束或正在投篮，不执行操作
+            if (gameState.gameOver || gameState.isShooting) {
+                return;
+            }
+            
+            // 设置投篮状态
+            gameState.isShooting = true;
+            
+            // 禁用投篮按钮
+            shootBtn.disabled = true;
+            shootBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // 记录动画开始时间
+            animationStartTime = Date.now();
+            
+            // 开始投篮动画
+            requestAnimationFrame(animateShoot);
+        }
+        
+        // 处理投篮结果
+        function handleShootResult() {
+            // 确定投篮是否成功
+            let isSuccess = false;
+            
+            if (gameState.currentPlayer === 'player') {
+                // 玩家有50%概率投中
+                isSuccess = Math.random() < 0.5;
+            } else {
+                // 许江涛100%投中
+                isSuccess = true;
+            }
+            
+            // 更新分数
+            if (isSuccess) {
+                if (gameState.currentPlayer === 'player') {
+                    gameState.playerScore++;
+                } else {
+                    gameState.computerScore++;
+                }
+            }
+            
+            // 显示投篮结果
+            showResult(isSuccess);
+            
+            // 更新UI
+            updateUI();
+            
+            // 检查游戏是否结束
+            if (checkGameOver()) {
+                // 游戏结束，显示结果
+                setTimeout(() => {
+                    showGameOver();
+                }, 1500);
+                return;
+            }
+            
+            // 切换玩家
+            setTimeout(() => {
+                switchPlayer();
+                
+                // 如果切换到电脑，自动投篮
+                if (gameState.currentPlayer === 'computer') {
+                    setTimeout(() => {
+                        handleShoot();
+                    }, 1000);
+                }
+            }, 1500);
+        }
+        
+        // 显示投篮结果
+        function showResult(isSuccess) {
+            const playerName = gameState.currentPlayer === 'player' ? '玩家' : '许江涛';
+            const result = isSuccess ? '投篮命中！' : '投篮未中！';
+            const color = isSuccess ? 'text-green-600' : 'text-red-600';
+            
+            resultTextEl.textContent = `${playerName} ${result}`;
+            resultTextEl.className = `px-4 py-2 rounded-lg animate-fade-in ${color}`;
+            resultMessageEl.classList.remove('hidden');
+            
+            // 如果投篮成功，显示篮球框抖动效果
+            if (isSuccess) {
+                const basketElement = document.createElement('div');
+                basketElement.className = 'absolute right-10 top-1/2 transform -translate-y-1/2 basket-shake';
+                basketElement.style.width = '60px';
+                basketElement.style.height = '60px';
+                basketElement.style.backgroundImage = `url(${images.basket.src})`;
+                basketElement.style.backgroundSize = 'contain';
+                basketElement.style.backgroundRepeat = 'no-repeat';
+                
+                const gameArea = document.querySelector('.relative.bg-blue-50');
+                gameArea.appendChild(basketElement);
+                
+                setTimeout(() => {
+                    basketElement.remove();
+                }, 500);
+            }
+            
+            // 3秒后隐藏结果
+            setTimeout(() => {
+                resultMessageEl.classList.add('hidden');
+            }, 1500);
+        }
+        
+        // 切换玩家
+        function switchPlayer() {
+            gameState.currentPlayer = gameState.currentPlayer === 'player' ? 'computer' : 'player';
+            
+            // 更新UI
+            updateUI();
+            
+            // 重置投篮状态
+            gameState.isShooting = false;
+            
+            // 启用投篮按钮（仅在玩家回合）
+            if (gameState.currentPlayer === 'player') {
+                shootBtn.disabled = false;
+                shootBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        // 更新UI
+        function updateUI() {
+            // 更新分数
+            playerScoreEl.textContent = gameState.playerScore;
+            computerScoreEl.textContent = gameState.computerScore;
+            
+            // 更新回合数
+            roundCounterEl.textContent = gameState.round;
+            
+            // 更新当前回合提示
+            currentTurnEl.textContent = gameState.currentPlayer === 'player' ? '玩家投篮' : '许江涛投篮';
+            
+            // 更新球员高亮状态
+            if (gameState.currentPlayer === 'player') {
+                playerAvatarEl.classList.add('player-active');
+                computerAvatarEl.classList.remove('player-active');
+            } else {
+                computerAvatarEl.classList.add('player-active');
+                playerAvatarEl.classList.remove('player-active');
+            }
+            
+            // 重绘游戏画面
+            drawGame();
+        }
+        
+        // 检查游戏是否结束
+        function checkGameOver() {
+            // 如果任意一方得分达到5分，游戏结束
+            if (gameState.playerScore >= 5 || gameState.computerScore >= 5) {
+                gameState.gameOver = true;
+                return true;
+            }
+            
+            // 每轮结束后增加回合数
+            if (gameState.currentPlayer === 'computer') {
+                gameState.round++;
+            }
+            
+            return false;
+        }
+        
+        // 显示游戏结束画面
+        function showGameOver() {
+            const winner = gameState.playerScore > gameState.computerScore ? '玩家' : '许江涛';
+            const loser = winner === '玩家' ? '许江涛' : '玩家';
+            
+            winnerTextEl.textContent = `${winner}获胜！`;
+            finalScoreEl.textContent = `${gameState.playerScore} - ${gameState.computerScore}`;
+            
+            if (winner === '玩家') {
+                gameOverMessageEl.textContent = '恭喜你战胜了许江涛！';
+                winnerTextEl.className = 'text-2xl font-bold text-center mb-4 text-blue-600';
+            } else {
+                gameOverMessageEl.textContent = '许江涛的100%命中率太厉害了！';
+                winnerTextEl.className = 'text-2xl font-bold text-center mb-4 text-red-600';
+            }
+            
+            gameOverModal.classList.remove('hidden');
+        }
+        
+        // 重置游戏
+        function resetGame() {
+            // 重置游戏状态
+            gameState.currentPlayer = 'player';
+            gameState.playerScore = 0;
+            gameState.computerScore = 0;
+            gameState.round = 1;
+            gameState.isShooting = false;
+            gameState.gameOver = false;
+            
+            // 隐藏游戏结束弹窗
+            gameOverModal.classList.add('hidden');
+            
+            // 重置UI
+            updateUI();
+            
+            // 启用投篮按钮
+            shootBtn.disabled = false;
+            shootBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            // 隐藏结果消息
+            resultMessageEl.classList.add('hidden');
+        }
+        
+        // 初始化游戏
+        window.addEventListener('load', initGame);
+    </script>
+
+</body></html>
